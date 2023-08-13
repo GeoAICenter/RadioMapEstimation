@@ -50,20 +50,24 @@ class MAE_UNet(nn.Module):
       return map1, sample_mask, map2
 
 
-    def step(self, batch, optimizer, min_samples, max_samples, train=True, free_space_only=False):
+    def step(self, batch, optimizer, min_samples, max_samples, train=True, free_space_only=False, mae_regularization=False):
         with torch.set_grad_enabled(train):
             sampled_map, complete_map, building_mask, complete_map, path, tx_loc = batch
             complete_map, building_mask = complete_map.to(torch.float32).to(device), building_mask.to(torch.float32).to(device)
 
-            _, _, pred_map = self.forward(complete_map, building_mask, min_samples, max_samples).to(torch.float32)
+            map1, _, pred_map = self.forward(complete_map, building_mask, min_samples, max_samples).to(torch.float32)
             
             # building_mask has 1 for free space, 0 for buildings (may change this for future datasets)
             # RadioUNet also calculates loss over buildings, whereas our previous models did not. I have included both options here.
             if free_space_only:
                 loss_ = nn.functional.mse_loss(pred_map * building_mask, complete_map * building_mask).to(torch.float32)
+                if mae_regularization:
+                    loss_ += nn.functional.mse_loss(map1 * building_mask, complete_map * building_mask).to(torch.float32)
             else:
                 loss_ = nn.functional.mse_loss(pred_map, complete_map).to(torch.float32)
-            
+                if mae_regularization:
+                    loss_ += nn.functional.mse_loss(map1, complete_map).to(torch.float32)
+
             if train:
                 loss_.backward()
                 optimizer.step()
@@ -73,12 +77,12 @@ class MAE_UNet(nn.Module):
     
 
     def fit(self, train_dl, test_dl, optimizer, scheduler, min_samples, max_samples, dB_max=-47.84, dB_min=-147,
-            free_space_only=False, epochs=100, save_model_epochs=25, eval_model_epochs=5, save_model_dir ='/content'):
+            free_space_only=False, epochs=100, save_model_epochs=25, eval_model_epochs=5, save_model_dir ='/content', mae_regularization=False):
         for epoch in range(epochs):
             self.train()
             running_loss = 0.0
             for i, batch in enumerate(train_dl):
-                loss = self.step(batch, optimizer, min_samples, max_samples, train=True, free_space_only=free_space_only)
+                loss = self.step(batch, optimizer, min_samples, max_samples, train=True, free_space_only=free_space_only, mae_regularization=mae_regularization)
                 running_loss += loss.detach().item()
                 print(f'{loss}, [{epoch + 1}, {i + 1:5d}] loss: {running_loss/(i+1)}')
 
@@ -98,14 +102,14 @@ class MAE_UNet(nn.Module):
 
 
     def fit_wandb(self, train_dl, test_dl, optimizer, scheduler, min_samples, max_samples, project_name, run_name, 
-                  dB_max=-47.84, dB_min=-147, free_space_only=False, epochs=100, save_model_epochs=25, save_model_dir='/content'):
+                  dB_max=-47.84, dB_min=-147, free_space_only=False, epochs=100, save_model_epochs=25, save_model_dir='/content', mae_regularization=False):
         import wandb
         wandb.init(project=project_name, name=run_name)
         for epoch in range(epochs):
             self.train()
             train_running_loss = 0.0
             for i, batch in enumerate(train_dl):
-                loss = self.step(batch, optimizer, min_samples, max_samples, train=True, free_space_only=free_space_only)
+                loss = self.step(batch, optimizer, min_samples, max_samples, train=True, free_space_only=free_space_only, mae_regularization=mae_regularization)
                 train_running_loss += loss.detach().item()
                 train_loss = train_running_loss/(i+1)
                 print(f'{loss}, [{epoch + 1}, {i + 1:5d}] loss: {train_loss}')
