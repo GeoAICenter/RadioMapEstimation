@@ -57,7 +57,8 @@ class MAE_UNet(nn.Module):
             sampled_map, complete_map, building_mask, complete_map, path, tx_loc = batch
             complete_map, building_mask = complete_map.to(torch.float32).to(device), building_mask.to(torch.float32).to(device)
 
-            map1, _, pred_map = self.forward(complete_map, building_mask, min_samples, max_samples).to(torch.float32)
+            map1, _, pred_map = self.forward(complete_map, building_mask, min_samples, max_samples)
+            map1, pred_map = map1.to(torch.float32), pred_map.to(torch.float32)
             
             # building_mask has 1 for free space, 0 for buildings (may change this for future datasets)
             # RadioUNet also calculates loss over buildings, whereas our previous models did not. I have included both options here.
