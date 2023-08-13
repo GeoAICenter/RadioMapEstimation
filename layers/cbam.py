@@ -6,6 +6,7 @@ https://github.com/xmu-xiaoma666/External-Attention-pytorch/blob/master/model/at
 Original license is included in the file "MIT License" in the root directory of this source tree.
 '''
 
+import torch
 import torch.nn as nn
 
 class ChannelAttention(nn.Module):
