@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 from sub_models.mae import MAE
 from sub_models.unet import UNet
 
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
 class MAE_UNet(nn.Module):
     def __init__(self,
                  # transformer params 
