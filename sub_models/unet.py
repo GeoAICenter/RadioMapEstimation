@@ -3,7 +3,7 @@ import torch.nn as nn
 from collections import OrderedDict
 
 from layers.cbam import CBAMBlock, SpatialAttention
-
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 class UNet(nn.Module):
     '''
     '''
