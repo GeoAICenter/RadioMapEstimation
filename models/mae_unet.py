@@ -23,7 +23,6 @@ class MAE_UNet(nn.Module):
                  decoder_depth=4, 
                  decoder_num_heads=4,
                  mlp_ratio=4., 
-                 norm_layer=nn.LayerNorm, 
                  norm_pix_loss=False,
                  # UNet params
                  latent_channels=64,
@@ -31,6 +30,8 @@ class MAE_UNet(nn.Module):
                  features=[32,32,32]):
         
         super(MAE_UNet, self).__init__()
+        
+        norm_layer = nn.LayerNorm
         
         self.transformer = MAE(img_size, patch_size, in_chans, embed_dim, pos_dim, depth, num_heads,
                  decoder_embed_dim, decoder_depth, decoder_num_heads, mlp_ratio, norm_layer, norm_pix_loss)
