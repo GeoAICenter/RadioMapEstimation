@@ -1,4 +1,5 @@
 import os
+import json
 import math
 import torch
 import torch.nn as nn
@@ -11,6 +12,8 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 class MAE_UNet(nn.Module):
     def __init__(self,
+                 model_name,
+                 model_type='MAE_CBAM',
                  # transformer params 
                  img_size=64, 
                  patch_size=1, 
@@ -29,10 +32,28 @@ class MAE_UNet(nn.Module):
                  out_channels=1,
                  features=[32,32,32]):
         
+        self.config = dict(model_name=model_name,
+                           model_type='MAE_CBAM',
+                           img_size=img_size, 
+                           patch_size=patch_size, 
+                           in_chans=in_chans,
+                           embed_dim=embed_dim,
+                           pos_dim=pos_dim, 
+                           depth=depth, 
+                           num_heads=num_heads,
+                           decoder_embed_dim=decoder_embed_dim, 
+                           decoder_depth=decoder_depth, 
+                           decoder_num_heads=decoder_num_heads,
+                           mlp_ratio=mlp_ratio, 
+                           norm_pix_loss=norm_pix_loss,
+                           latent_channels=latent_channels,
+                           out_channels=out_channels,
+                           features=features)
+        
         super(MAE_UNet, self).__init__()
         
         norm_layer = nn.LayerNorm
-        
+
         self.transformer = MAE(img_size, patch_size, in_chans, embed_dim, pos_dim, depth, num_heads,
                  decoder_embed_dim, decoder_depth, decoder_num_heads, mlp_ratio, norm_layer, norm_pix_loss)
         
@@ -80,8 +101,21 @@ class MAE_UNet(nn.Module):
         return loss_
     
 
-    def fit(self, train_dl, test_dl, optimizer, scheduler, min_samples, max_samples, dB_max=-47.84, dB_min=-147,
-            free_space_only=False, epochs=100, save_model_epochs=25, eval_model_epochs=5, save_model_dir ='/content', mae_regularization=False):
+    def fit(self, train_dl, val_dl, optimizer, scheduler, min_samples, max_samples, run_name=None, dB_max=-47.84, dB_min=-147,
+            free_space_only=False, mae_regularization=False, epochs=100, save_model_epochs=25, eval_model_epochs=5, 
+            save_model_dir ='/content'):
+        
+        if run_name is None:
+            run_name = f'{min_samples}-{max_samples} samples'
+            if free_space_only:
+                run_name += ', free space only'
+            if mae_regularization:
+                run_name += ', mae regularization'
+
+        self.training_config = dict(train_batch=train_dl.batch_size, val_batch=val_dl.batch_size, min_samples=min_samples,
+                                    max_samples=max_samples, run_name=run_name, dB_max=dB_max, dB_min=dB_min, 
+                                    free_space_only=free_space_only, mae_regularization=mae_regularization)
+        
         for epoch in range(epochs):
             self.train()
             running_loss = 0.0
@@ -92,23 +126,37 @@ class MAE_UNet(nn.Module):
 
             if eval_model_epochs > 0:
                 if (epoch + 1) % eval_model_epochs == 0:
-                    test_loss = self.evaluate(test_dl, min_samples, max_samples, dB_max, dB_min, free_space_only=free_space_only)
+                    test_loss = self.evaluate(val_dl, min_samples, max_samples, dB_max, dB_min, free_space_only=free_space_only)
                     print(f'{test_loss}, [{epoch + 1}]')
+            
+            if scheduler:
+              scheduler.step()   
 
             if (epoch + 1) % save_model_epochs == 0 or epoch == epochs - 1:
                 if not os.path.exists(save_model_dir):
                     os.makedirs(save_model_dir)
-                filepath = os.path.join(save_model_dir, f'epoch_{epoch}.pth')
-                self.save_model(filepath)
-            
-            if scheduler:
-              scheduler.step()    
+                self.save_model(epoch+1, optimizer, scheduler, out_dir=save_model_dir)
 
 
-    def fit_wandb(self, train_dl, test_dl, optimizer, scheduler, min_samples, max_samples, project_name, run_name, 
-                  dB_max=-47.84, dB_min=-147, free_space_only=False, epochs=100, save_model_epochs=25, save_model_dir='/content', mae_regularization=False):
+    def fit_wandb(self, train_dl, val_dl, optimizer, scheduler, min_samples, max_samples, project_name, run_name=None, 
+                  dB_max=-47.84, dB_min=-147, free_space_only=False, mae_regularization=False, epochs=100, 
+                  save_model_epochs=25, save_model_dir='/content'):
+        
+        if run_name is None:
+            run_name = f'{min_samples}-{max_samples} samples'
+            if free_space_only:
+                run_name += ', free space only'
+            if mae_regularization:
+                run_name += ', mae regularization'
+      
+        self.training_config = dict(train_batch=train_dl.batch_size, val_batch=val_dl.batch_size, min_samples=min_samples,
+                                    max_samples=max_samples, project_name=project_name, run_name=run_name, dB_max=dB_max,
+                                    dB_min=dB_min, free_space_only=free_space_only, mae_regularization=mae_regularization)
+
         import wandb
-        wandb.init(project=project_name, name=run_name)
+        config = {**self.config, **self.training_config}
+        wandb.init(project=project_name, group=config['model_name'], name=run_name, config=config)
+
         for epoch in range(epochs):
             self.train()
             train_running_loss = 0.0
@@ -117,19 +165,18 @@ class MAE_UNet(nn.Module):
                 train_running_loss += loss.detach().item()
                 train_loss = train_running_loss/(i+1)
                 print(f'{loss}, [{epoch + 1}, {i + 1:5d}] loss: {train_loss}')
-            test_loss = self.evaluate(test_dl, min_samples, max_samples, dB_max, dB_min, free_space_only=free_space_only)
+            test_loss = self.evaluate(val_dl, min_samples, max_samples, dB_max, dB_min, free_space_only=free_space_only)
             print(f'{test_loss}, [{epoch + 1}]')
                                     
             wandb.log({'train_loss': train_loss, 'test_loss': test_loss})
 
+            if scheduler:
+                scheduler.step()
+
             if (epoch + 1) % save_model_epochs == 0 or epoch == epochs - 1:
                 if not os.path.exists(save_model_dir):
                     os.makedirs(save_model_dir)
-                filepath = os.path.join(save_model_dir, f'{run_name}, {epoch+1} epochs.pth')
-                self.save_model(filepath)
-
-            if scheduler:
-                scheduler.step()
+                self.save_model(epoch+1, optimizer, scheduler, out_dir=save_model_dir)
 
 
     def evaluate(self, test_dl, min_samples, max_samples, dB_max=-47.84, dB_min=-147, free_space_only=False, pre_sampled=False):
@@ -192,5 +239,42 @@ class MAE_UNet(nn.Module):
         return torch.Tensor(dB)
     
 
-    def save_model(self, out_path):
-        torch.save(self, out_path)
+    def save_model(self, epoch=0, optimizer=None, scheduler=None, out_dir='/content'):
+        # First time model is saved (as indicated by not having a pre-existing model directory),
+        # create model folder and save model config.
+        model_name = self.config['model_name']
+        model_dir = os.path.join(out_dir, model_name)
+        if not os.path.isdir(model_dir):
+            os.mkdir(model_dir)
+
+            # Save model config (i.e. params called with __init__).
+            config_path = os.path.join(model_dir, f'{model_name} config.json')
+            with open(config_path, 'w') as config_file:
+                json.dump(self.config, config_file, indent=2)
+
+        # If called with fit or fit_wandb (hence having "self.training_config"), make a new run
+        # directory and save training_config, optimizer, scheduler, and trained weights.
+        if hasattr(self, 'training_config'):
+            run_name = self.training_config['run_name']
+            run_dir = os.path.join(model_dir, run_name)
+            if not os.path.isdir(run_dir):
+                os.mkdir(run_dir)
+
+                # Save training_config first time for new run
+                train_config_path = os.path.join(run_dir, 'training_config.json')
+                with open(train_config_path, 'w') as train_config_file:
+                    json.dump(self.training_config, train_config_file, indent=2)
+
+            # Save optimizer (if specified in fit or fit_wandb)
+            if optimizer:
+                opt_path = os.path.join(run_dir, f'{epoch} epochs optimizer.pth')
+                torch.save(optimizer.state_dict(), opt_path)
+
+            # Save scheduler (if specified in fit or fit_wandb)
+            if scheduler:
+                sched_path = os.path.join(run_dir, f'{epoch} epochs scheduler.pth')
+                torch.save(scheduler.state_dict(), sched_path)
+
+            # Save state dict
+            model_path = os.path.join(run_dir, f'{epoch} epochs state dict.pth')
+            torch.save(self.state_dict(), model_path)
