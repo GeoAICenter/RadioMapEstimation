@@ -6,11 +6,11 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 
 from sub_models.mae import MAE
-from sub_models.unet import UNet
+from sub_models.cbam import CBAM
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-class MAE_UNet(nn.Module):
+class MAE_CBAM(nn.Module):
     def __init__(self,
                  model_name,
                  model_type='MAE_CBAM',
@@ -50,14 +50,14 @@ class MAE_UNet(nn.Module):
                            out_channels=out_channels,
                            features=features)
         
-        super(MAE_UNet, self).__init__()
+        super(MAE_CBAM, self).__init__()
         
         norm_layer = nn.LayerNorm
 
-        self.transformer = MAE(img_size, patch_size, in_chans, embed_dim, pos_dim, depth, num_heads,
-                 decoder_embed_dim, decoder_depth, decoder_num_heads, mlp_ratio, norm_layer, norm_pix_loss)
+        self.model1 = MAE(img_size, patch_size, in_chans, embed_dim, pos_dim, depth, num_heads, decoder_embed_dim,
+                          decoder_depth, decoder_num_heads, mlp_ratio, norm_layer, norm_pix_loss)
         
-        self.unet = UNet(in_channels=3, latent_channels=latent_channels, out_channels=out_channels, features=features)
+        self.model2 = CBAM(in_channels=3, latent_channels=latent_channels, out_channels=out_channels, features=features)
 
 
     def forward(self, x, building_mask, min_samples, max_samples, pre_sampled=False):
@@ -65,11 +65,11 @@ class MAE_UNet(nn.Module):
       inv_building_mask = 1-building_mask
 
       # sample_mask has 1 for non-sampled locations, 0 for sampled locations.
-      map1, sample_mask = self.transformer(x, building_mask, min_samples, max_samples, pre_sampled)
+      map1, sample_mask = self.model1(x, building_mask, min_samples, max_samples, pre_sampled)
 
       x = torch.cat((map1, sample_mask, inv_building_mask), dim=1)
 
-      map2 = self.unet(x)
+      map2 = self.model2(x)
 
       return map1, sample_mask, map2
 

@@ -5,7 +5,7 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 
 from sub_models.mae import MAE
-from sub_models.unet import UNet
+from sub_models.cbam import CBAM
 from util.interpolate import interpolate_map
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -33,7 +33,7 @@ class MAE_UNet(nn.Module):
         
         super(MAE_UNet, self).__init__()
         
-        self.unet = UNet(in_channels=3, latent_channels=latent_channels, out_channels=out_channels, features=features)
+        self.unet = CBAM(in_channels=3, latent_channels=latent_channels, out_channels=out_channels, features=features)
 
 
     def forward(self, x, building_mask, min_samples, max_samples, pre_sampled=False, method='linear'):
