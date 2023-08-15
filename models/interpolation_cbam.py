@@ -44,7 +44,7 @@ class Interpolation_CBAM(nn.Module):
       inv_building_mask = 1-building_mask
 
       # sample_mask has 1 for non-sampled locations, 0 for sampled locations.
-      map1, sample_mask = self.model1(x, building_mask, min_samples, max_samples, method, pre_sampled)
+      map1, sample_mask = self.model1.forward(x, building_mask, min_samples, max_samples, method, pre_sampled)
       
       x = torch.cat((map1, sample_mask, inv_building_mask), dim=1)
 
