@@ -75,7 +75,7 @@ class Interpolation:
         points = (mask == 0).nonzero()
         values = sampled_map[mask == 0]
         map = griddata(points.cpu(), values.cpu(), (grid_x, grid_y), method=method, fill_value=np.median(values.cpu()))
-        map = torch.from_numpy(map, device=sampled_map.device, dtype=torch.float32).unsqueeze(0)
+        map = torch.from_numpy(map).unsqueeze(0).to(sampled_map.device)
         return map
     
     def forward(self, x, building_mask, min_samples, max_samples, method, pre_sampled=False):
