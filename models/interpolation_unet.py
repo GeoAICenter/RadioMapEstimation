@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 from sub_models.mae import MAE
 from sub_models.unet import UNet
-from util.dataset import interpolate_map
+from util.interpolate import interpolate_map
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
