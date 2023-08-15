@@ -70,9 +70,10 @@ class Interpolation:
         return x_masked, mask, ids_shuffle, ids_restore
 
     def interpolate_map(self, sampled_map, mask, method):
+        # Mask has 1 for non-sampled locations, 0 for sampled locations
         grid_x, grid_y = np.mgrid[0:sampled_map.shape[0], 0:sampled_map.shape[1]]
-        points = (mask == 1).nonzero()
-        values = sampled_map[sampled_map == 1] 
+        points = (mask == 0).nonzero()
+        values = sampled_map[mask == 0]
         map = griddata(points.cpu(), values.cpu(), (grid_x, grid_y), method=method, fill_value=np.median(values.cpu()))
         map = torch.Tensor(map).unsqueeze(0)
         return map
