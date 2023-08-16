@@ -39,7 +39,7 @@ class _UNet(nn.Module):
         self.decoder1_3 = _UNet._block(in_channels=features[0] * 2, out_channels=features[0], name="dec1_3")
         self.decoder1_2 = _UNet._block(in_channels=features[0], out_channels=features[0], name="dec1_2")
         self.decoder1_1 = _UNet._block(in_channels=features[0], out_channels=features[0], name="dec1_1")
-        self.outputs = nn.Conv2d(in_channels=features[0], out_channels=out_channels, padding=1)
+        self.outputs = nn.Conv2d(in_channels=features[0], out_channels=out_channels, kernel_size=3, padding=1)
 
     def forward(self, x):
         x = self.inputs(x)
