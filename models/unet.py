@@ -93,7 +93,7 @@ class UNet(nn.Module):
             self.train()
             running_loss = 0.0
             for i, batch in enumerate(train_dl):
-                loss = self.step(batch, optimizer, min_samples, max_samples, train=True, free_space_only=free_space_only, mae_regularization=mae_regularization)
+                loss = self.step(batch, optimizer, min_samples, max_samples, train=True, free_space_only=free_space_only)
                 running_loss += loss.detach().item()
                 print(f'{loss}, [{epoch + 1}, {i + 1:5d}] loss: {running_loss/(i+1)}')
 
@@ -131,7 +131,7 @@ class UNet(nn.Module):
             self.train()
             train_running_loss = 0.0
             for i, batch in enumerate(train_dl):
-                loss = self.step(batch, optimizer, min_samples, max_samples, train=True, free_space_only=free_space_only, mae_regularization=mae_regularization)
+                loss = self.step(batch, optimizer, min_samples, max_samples, train=True, free_space_only=free_space_only)
                 train_running_loss += loss.detach().item()
                 train_loss = train_running_loss/(i+1)
                 print(f'{loss}, [{epoch + 1}, {i + 1:5d}] loss: {train_loss}')
