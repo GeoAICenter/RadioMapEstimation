@@ -118,8 +118,6 @@ class CBAM(nn.Module):
             run_name = f'{min_samples}-{max_samples} samples'
             if free_space_only:
                 run_name += ', free space only'
-            if mae_regularization:
-                run_name += ', mae regularization'
       
         self.training_config = dict(train_batch=train_dl.batch_size, val_batch=val_dl.batch_size, min_samples=min_samples,
                                     max_samples=max_samples, project_name=project_name, run_name=run_name, dB_max=dB_max,
