@@ -5,8 +5,8 @@ import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 
-from sub_models.mae import MAE
-from sub_models.cbam import CBAM
+from sub_models._mae import MAE
+from sub_models._cbam import CBAM
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
