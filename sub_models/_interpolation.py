@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from scipy.interpolate import griddata
 
-class Interpolation:
+class _Interpolation:
 
     def __init__(self, img_size=224, patch_size=16, in_chans=3):
         self.patch_size = patch_size

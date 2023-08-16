@@ -4,41 +4,41 @@ from collections import OrderedDict
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-class UNet(nn.Module):
+class _UNet(nn.Module):
     '''
     '''
 
     def __init__(self, in_channels=3, latent_channels=64, out_channels=1, features=[32,32,32]):
-        super(UNet, self).__init__()
+        super(_UNet, self).__init__()
 
         if isinstance(features, int):
             features = [features] * 3
 
         self.inputs = nn.Conv2d(in_channels=in_channels, out_channels=in_channels, kernel_size=3, padding=1)
-        self.encoder1_1 = UNet._block(in_channels=in_channels, out_channels=features[0], name="enc1_1")
-        self.encoder1_2 = UNet._block(in_channels=features[0], out_channels=features[0], name="enc1_2")
-        self.encoder1_3 = UNet._block(in_channels=features[0], out_channels=features[0], name="enc1_3")
-        self.encoder2_1 = UNet._block(in_channels=features[0], out_channels=features[1], name="enc2_1")
-        self.encoder2_2 = UNet._block(in_channels=features[1], out_channels=features[1], name="enc2_2")
-        self.encoder2_3 = UNet._block(in_channels=features[1], out_channels=features[1], name="enc2_3")
-        self.encoder3_1 = UNet._block(in_channels=features[1], out_channels=features[2], name="enc3_1")
-        self.encoder3_2 = UNet._block(in_channels=features[2], out_channels=features[2], name="enc3_2")
-        self.encoder3_3 = UNet._block(in_channels=features[2], out_channels=features[2], name="enc3_3")
+        self.encoder1_1 = _UNet._block(in_channels=in_channels, out_channels=features[0], name="enc1_1")
+        self.encoder1_2 = _UNet._block(in_channels=features[0], out_channels=features[0], name="enc1_2")
+        self.encoder1_3 = _UNet._block(in_channels=features[0], out_channels=features[0], name="enc1_3")
+        self.encoder2_1 = _UNet._block(in_channels=features[0], out_channels=features[1], name="enc2_1")
+        self.encoder2_2 = _UNet._block(in_channels=features[1], out_channels=features[1], name="enc2_2")
+        self.encoder2_3 = _UNet._block(in_channels=features[1], out_channels=features[1], name="enc2_3")
+        self.encoder3_1 = _UNet._block(in_channels=features[1], out_channels=features[2], name="enc3_1")
+        self.encoder3_2 = _UNet._block(in_channels=features[2], out_channels=features[2], name="enc3_2")
+        self.encoder3_3 = _UNet._block(in_channels=features[2], out_channels=features[2], name="enc3_3")
         self.pool = nn.AvgPool2d(kernel_size=2, stride=2)
 
         self.bottleneck1 = nn.Conv2d(in_channels=features[2], out_channels=latent_channels, kernel_size=3, padding=1)
         self.bottleneck2 = nn.Conv2d(in_channels=latent_channels, out_channels=features[2], kernel_size=3, padding=1)
 
         self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
-        self.decoder3_3 = UNet._block(in_channels=features[2] * 2, out_channels=features[2], name="dec3_3")
-        self.decoder3_2 = UNet._block(in_channels=features[2], out_channels=features[2], name="dec3_2")
-        self.decoder3_1 = UNet._block(in_channels=features[2], out_channels=features[2], name="dec3_1")
-        self.decoder2_3 = UNet._block(in_channels=features[1] * 2, out_channels=features[1], name="dec2_3")
-        self.decoder2_2 = UNet._block(in_channels=features[1], out_channels=features[1], name="dec2_2")
-        self.decoder2_1 = UNet._block(in_channels=features[1], out_channels=features[1], name="dec2_1")
-        self.decoder1_3 = UNet._block(in_channels=features[0] * 2, out_channels=features[0], name="dec1_3")
-        self.decoder1_2 = UNet._block(in_channels=features[0], out_channels=features[0], name="dec1_2")
-        self.decoder1_1 = UNet._block(in_channels=features[0], out_channels=features[0], name="dec1_1")
+        self.decoder3_3 = _UNet._block(in_channels=features[2] * 2, out_channels=features[2], name="dec3_3")
+        self.decoder3_2 = _UNet._block(in_channels=features[2], out_channels=features[2], name="dec3_2")
+        self.decoder3_1 = _UNet._block(in_channels=features[2], out_channels=features[2], name="dec3_1")
+        self.decoder2_3 = _UNet._block(in_channels=features[1] * 2, out_channels=features[1], name="dec2_3")
+        self.decoder2_2 = _UNet._block(in_channels=features[1], out_channels=features[1], name="dec2_2")
+        self.decoder2_1 = _UNet._block(in_channels=features[1], out_channels=features[1], name="dec2_1")
+        self.decoder1_3 = _UNet._block(in_channels=features[0] * 2, out_channels=features[0], name="dec1_3")
+        self.decoder1_2 = _UNet._block(in_channels=features[0], out_channels=features[0], name="dec1_2")
+        self.decoder1_1 = _UNet._block(in_channels=features[0], out_channels=features[0], name="dec1_1")
         self.outputs = nn.Conv2d(in_channels=features[0], out_channels=out_channels, padding=1)
 
     def forward(self, x):

@@ -5,8 +5,8 @@ import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 
-from sub_models._interpolation import Interpolation
-from sub_models._unet import UNet
+from sub_models._interpolation import _Interpolation
+from sub_models._unet import _UNet
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -34,9 +34,9 @@ class Interpolation_UNet(nn.Module):
         
         super(Interpolation_UNet, self).__init__()
 
-        self.model1 = Interpolation(img_size=img_size, patch_size=patch_size, in_chans=in_chans)
+        self.model1 = _Interpolation(img_size=img_size, patch_size=patch_size, in_chans=in_chans)
         
-        self.model2 = UNet(in_channels=3, latent_channels=latent_channels, out_channels=out_channels, features=features)
+        self.model2 = _UNet(in_channels=3, latent_channels=latent_channels, out_channels=out_channels, features=features)
 
 
     def forward(self, x, building_mask, min_samples, max_samples, method, pre_sampled=False):

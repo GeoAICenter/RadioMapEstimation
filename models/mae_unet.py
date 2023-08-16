@@ -5,8 +5,8 @@ import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 
-from sub_models._mae import MAE
-from sub_models._unet import UNet
+from sub_models._mae import _MAE
+from sub_models._unet import _UNet
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -54,10 +54,10 @@ class MAE_UNet(nn.Module):
         
         norm_layer = nn.LayerNorm
 
-        self.model1 = MAE(img_size, patch_size, in_chans, embed_dim, pos_dim, depth, num_heads, decoder_embed_dim,
+        self.model1 = _MAE(img_size, patch_size, in_chans, embed_dim, pos_dim, depth, num_heads, decoder_embed_dim,
                           decoder_depth, decoder_num_heads, mlp_ratio, norm_layer, norm_pix_loss)
         
-        self.model2 = UNet(in_channels=3, latent_channels=latent_channels, out_channels=out_channels, features=features)
+        self.model2 = _UNet(in_channels=3, latent_channels=latent_channels, out_channels=out_channels, features=features)
 
 
     def forward(self, x, building_mask, min_samples, max_samples, pre_sampled=False):
