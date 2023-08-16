@@ -5,59 +5,38 @@ import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 
-from sub_models._mae import _MAE
-from sub_models._cbam import _CBAM
+from util.random_sample import RandomSample
+from sub_models._unet import _UNet
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-class MAE_CBAM(nn.Module):
+class UNet(nn.Module):
     def __init__(self,
                  model_name,
-                 model_type='MAE_CBAM',
-                 # transformer params 
+                 model_type='UNet',
+                 # map sample params 
                  img_size=64, 
                  patch_size=1, 
                  in_chans=1,
-                 embed_dim=64,
-                 pos_dim=16, 
-                 depth=8, 
-                 num_heads=4,
-                 decoder_embed_dim=32, 
-                 decoder_depth=4, 
-                 decoder_num_heads=4,
-                 mlp_ratio=4., 
-                 norm_pix_loss=False,
-                 # CBAM params
+                 # UNet params
                  latent_channels=64,
                  out_channels=1,
                  features=[32,32,32]):
         
         self.config = dict(model_name=model_name,
-                           model_type='MAE_CBAM',
+                           model_type='UNet',
                            img_size=img_size, 
                            patch_size=patch_size, 
                            in_chans=in_chans,
-                           embed_dim=embed_dim,
-                           pos_dim=pos_dim, 
-                           depth=depth, 
-                           num_heads=num_heads,
-                           decoder_embed_dim=decoder_embed_dim, 
-                           decoder_depth=decoder_depth, 
-                           decoder_num_heads=decoder_num_heads,
-                           mlp_ratio=mlp_ratio, 
-                           norm_pix_loss=norm_pix_loss,
                            latent_channels=latent_channels,
                            out_channels=out_channels,
                            features=features)
         
-        super(MAE_CBAM, self).__init__()
+        super(UNet, self).__init__()
+                
+        self.model1 = RandomSample(img_size=img_size, patch_size=patch_size, in_chans=in_chans)
         
-        norm_layer = nn.LayerNorm
-
-        self.model1 = _MAE(img_size, patch_size, in_chans, embed_dim, pos_dim, depth, num_heads, decoder_embed_dim,
-                          decoder_depth, decoder_num_heads, mlp_ratio, norm_layer, norm_pix_loss)
-        
-        self.model2 = _CBAM(in_channels=3, latent_channels=latent_channels, out_channels=out_channels, features=features)
+        self.model2 = _UNet(in_channels=3, latent_channels=latent_channels, out_channels=out_channels, features=features)
 
 
     def forward(self, x, building_mask, min_samples, max_samples, pre_sampled=False):
@@ -65,16 +44,17 @@ class MAE_CBAM(nn.Module):
       inv_building_mask = 1-building_mask
 
       # sample_mask has 1 for non-sampled locations, 0 for sampled locations.
-      map1, sample_mask = self.model1(x, building_mask, min_samples, max_samples, pre_sampled)
+      map1, sample_mask = self.model1.forward(x, building_mask, min_samples, max_samples, pre_sampled)
 
       x = torch.cat((map1, sample_mask, inv_building_mask), dim=1)
 
       map2 = self.model2(x)
 
       return map1, sample_mask, map2
+    
 
 
-    def step(self, batch, optimizer, min_samples, max_samples, train=True, free_space_only=False, mae_regularization=False):
+    def step(self, batch, optimizer, min_samples, max_samples, train=True, free_space_only=False):
         with torch.set_grad_enabled(train):
             sampled_map, complete_map, building_mask, complete_map, path, tx_loc = batch
             complete_map, building_mask = complete_map.to(torch.float32).to(device), building_mask.to(torch.float32).to(device)
@@ -86,12 +66,8 @@ class MAE_CBAM(nn.Module):
             # RadioUNet also calculates loss over buildings, whereas our previous models did not. I have included both options here.
             if free_space_only:
                 loss_ = nn.functional.mse_loss(pred_map * building_mask, complete_map * building_mask).to(torch.float32)
-                if mae_regularization:
-                    loss_ += nn.functional.mse_loss(map1 * building_mask, complete_map * building_mask).to(torch.float32)
             else:
                 loss_ = nn.functional.mse_loss(pred_map, complete_map).to(torch.float32)
-                if mae_regularization:
-                    loss_ += nn.functional.mse_loss(map1, complete_map).to(torch.float32)
 
             if train:
                 loss_.backward()
@@ -102,19 +78,16 @@ class MAE_CBAM(nn.Module):
     
 
     def fit(self, train_dl, val_dl, optimizer, scheduler, min_samples, max_samples, run_name=None, dB_max=-47.84, dB_min=-147,
-            free_space_only=False, mae_regularization=False, epochs=100, save_model_epochs=25, eval_model_epochs=5, 
-            save_model_dir ='/content'):
+            free_space_only=False, epochs=100, save_model_epochs=25, eval_model_epochs=5, save_model_dir ='/content'):
         
         if run_name is None:
             run_name = f'{min_samples}-{max_samples} samples'
             if free_space_only:
                 run_name += ', free space only'
-            if mae_regularization:
-                run_name += ', mae regularization'
 
         self.training_config = dict(train_batch=train_dl.batch_size, val_batch=val_dl.batch_size, min_samples=min_samples,
                                     max_samples=max_samples, run_name=run_name, dB_max=dB_max, dB_min=dB_min, 
-                                    free_space_only=free_space_only, mae_regularization=mae_regularization)
+                                    free_space_only=free_space_only)
         
         for epoch in range(epochs):
             self.train()
@@ -139,8 +112,7 @@ class MAE_CBAM(nn.Module):
 
 
     def fit_wandb(self, train_dl, val_dl, optimizer, scheduler, min_samples, max_samples, project_name, run_name=None, 
-                  dB_max=-47.84, dB_min=-147, free_space_only=False, mae_regularization=False, epochs=100, 
-                  save_model_epochs=25, save_model_dir='/content'):
+                  dB_max=-47.84, dB_min=-147, free_space_only=False, epochs=100, save_model_epochs=25, save_model_dir='/content'):
         
         if run_name is None:
             run_name = f'{min_samples}-{max_samples} samples'
@@ -151,7 +123,7 @@ class MAE_CBAM(nn.Module):
       
         self.training_config = dict(train_batch=train_dl.batch_size, val_batch=val_dl.batch_size, min_samples=min_samples,
                                     max_samples=max_samples, project_name=project_name, run_name=run_name, dB_max=dB_max,
-                                    dB_min=dB_min, free_space_only=free_space_only, mae_regularization=mae_regularization)
+                                    dB_min=dB_min, free_space_only=free_space_only)
 
         import wandb
         config = {**self.config, **self.training_config}
