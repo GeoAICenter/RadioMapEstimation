@@ -61,17 +61,17 @@ class MAE_UNet(nn.Module):
 
 
     def forward(self, x, building_mask, min_samples, max_samples, pre_sampled=False):
-      # building_mask has 1 for free space, 0 for buildings (may change this for future datasets).
-      inv_building_mask = 1-building_mask
+        # building_mask has 1 for free space, 0 for buildings (may change this for future datasets).
+        inv_building_mask = 1-building_mask
 
-      # sample_mask has 1 for non-sampled locations, 0 for sampled locations.
-      map1, sample_mask = self.model1(x, building_mask, min_samples, max_samples, pre_sampled)
+        # sample_mask has 1 for non-sampled locations, 0 for sampled locations.
+        map1, sample_mask = self.model1(x, building_mask, min_samples, max_samples, pre_sampled)
 
-      x = torch.cat((map1, sample_mask, inv_building_mask), dim=1)
+        x = torch.cat((map1, sample_mask, inv_building_mask), dim=1)
 
-      map2 = self.model2(x)
+        map2 = self.model2(x)
 
-      return map1, sample_mask, map2
+        return map1, sample_mask, map2
 
 
     def step(self, batch, optimizer, min_samples, max_samples, train=True, free_space_only=False, mae_regularization=False):
@@ -224,7 +224,7 @@ class MAE_UNet(nn.Module):
         self.eval()
         map1, sample_mask, map2 = self.forward(x, building_mask, min_samples, max_samples, pre_sampled)
         if pre_sampled:
-            x = x[:,0]
+            x = x[:,:1]
         fig, axs = plt.subplots(1,4, figsize=(15,5))
         axs[0].imshow(x[0,0,:,:].cpu())
         axs[1].imshow(sample_mask[0,0,:,:].detach().cpu())

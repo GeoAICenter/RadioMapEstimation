@@ -212,10 +212,18 @@ class _MAE(nn.Module):
 
 
     def forward(self, imgs, building_mask, min_samples, max_samples, pre_sampled=False):
+        # Because pre-sampled maps have different numbers of samples (even when binned by % sampled), the
+        # _MAE sub-model can only accept batches of size 1 on pre-sampled maps.
+        if pre_sampled:
+            if imgs.shape[0] != 1:
+                raise ValueError('For pre-sampled maps, batch size must be 1.')
+
         latent, mask, ids_shuffle, ids_restore = self.forward_encoder(imgs, building_mask, min_samples, max_samples, pre_sampled)
         pred = self.forward_decoder(latent, ids_shuffle, ids_restore)  # [N, L, p*p*3]
 
         # replace sampled locations in prediction with sampled measurements
+        if pre_sampled:
+            imgs = imgs[:,:1]
         mask = mask.unsqueeze(-1)
         samples = self.patchify(imgs) * (1-mask) # mask has 0 for sampled locations, 1 for unsampled locations
         pred *= mask
