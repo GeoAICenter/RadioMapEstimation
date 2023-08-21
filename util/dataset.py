@@ -23,7 +23,8 @@ class RadioMapDataset(torch.utils.data.Dataset):
   https://drive.google.com/drive/folders/1JKXDvh76m-GJnlTzb3Crx46qRz2QXrTK?usp=sharing
 
   It should also work on any of the datasets stored in the "Deep Completion Autoencoder" folder under
-  "Datasets" in the shared Google Drive, but I haven't tested this:
+  "Datasets" in the shared Google Drive, but I haven't tested this, and the data would still have to be
+  scaled between 0 and 1:
   https://drive.google.com/drive/folders/1G16KbTCQ7flF49zVj8-E2S2LUBLDb_eI?usp=sharing
 
   The original RadioMapSeer Dataset (which this will not work on) is stored as a zip file in the "RadioMapSeer"
@@ -47,11 +48,11 @@ class RadioMapDataset(torch.utils.data.Dataset):
   def __getitem__(self, idx):
     '''
     returns
-        sampled_map:    2xHxW torch.Tensor. First channel is sampled radio power measurements, with all unsampled
-                        positions filled with 0. Second channel is ternary mask, with 1 for sampled locations, 0
-                        for unsampled locations, and -1 for building locations.
+        sampled_map:    2xHxW torch.Tensor. First channel is sampled radio power measurements scaled between 0 and 1, 
+                        with all unsampled positions filled with 0. Second channel is ternary mask, with 1 for sampled 
+                        locations, 0 for unsampled locations, and -1 for building locations.
         
-        complete_map:   1xHxW torch.Tensor. Radio power at all positions.
+        complete_map:   1xHxW torch.Tensor. Radio power at all positions, scaled between 0 and 1.
 
         building_mask:  1xHxW torch.Tensor. Binary mask, with 1 for building locations and 0 for free space
                         (non-building) locations.
