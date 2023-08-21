@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from collections import OrderedDict
 
-from layers.cbam_attention import CBAMBlock, SpatialAttention
+from attention.cbam_attention import CBAMBlock, SpatialAttention
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 class _CBAM(nn.Module):
     '''

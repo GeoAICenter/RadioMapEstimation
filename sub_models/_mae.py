@@ -16,8 +16,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from layers.self_attention import Block
-from layers.cross_attention import CrossAttentionBlock
+from attention.self_attention import Block
+from attention.cross_attention import CrossAttentionBlock
 from util.patch_embed import PatchEmbed
 from util.pos_embed import get_2d_sincos_pos_embed
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
