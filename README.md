@@ -36,4 +36,16 @@ One limitation of the MAE is that it expects all images / maps within a batch to
 
 **CBAM** ([paper](https://arxiv.org/abs/1807.06521) | [github](https://github.com/xmu-xiaoma666/External-Attention-pytorch/blob/master/README_EN.md#6-cbam-attention-usage))
 
-The Convolutional Block Attention Module (CBAM) is a type of gated attention applied to feature maps in a CNN that squishes some features to 0 and allows others to pass through unchanged (more specifically, it applies sigmoid activation )
+The Convolutional Block Attention Module (CBAM) is a type of gated attention applied to feature maps in a CNN that squishes some features to 0 and allows others to pass through unchanged (more accurately, it multiplies all features by a factor between 0 and 1). The CBAM sub-model is a UNet with CBAM-style attention. The UNet has three "levels", where each level consists of three convolution + CBAM layers followed by downsampling or upsampling.
+
+CBAM was the first type of attention we considered applying to RME, with the thought that it would learn to emphasize features in areas with more sampled measurements and downplay features in areas with fewer sampled measurements, while also potentially responding to implicitly learned features such as possible transmitter positions. However, since the input is already so sparse (all unsampled locations are filled with 0 by default), an attention mechanism that operates by squishing unimportant values to 0 might not have any affect here. This gave us the idea of filling in those unsampled locations and creating a "dense" map (i.e. stage 1 of the two-stage model). Our initial idea was to use interpolation to do this (realized in the Interpolation_CBAM model), though we actually started on the more powerful Masked Autoencoder (MAE_CBAM). We also created a CBAM model to allow the UNet with CBAM to operate directly on the sparse maps as an ablation study.
+
+**UNet**
+
+The UNet sub-model is identical to the CBAM sub-model above, but with the Convolutional Block Attention Module removed. It is used in the MAE_UNet, Interpolation_UNet, and UNet models for ablation studies to see whether the Convolutional Block Attention Module actually improves model performance in any of those cases.
+
+**Interpolation** ([code](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.griddata.html))
+
+To see whether the Masked Autoencoder (MAE) actually improves model performance, we replace it with nearest neighbor, linear, or cubic interpolation in the Interpolation_CBAM and Interpolation_UNet models. The implementation is taken from SciPy's interpolate.griddata function.
+
+A practical challenge of using SciPy's interpolation function is that it requires putting all input tensors back onto the CPU and calculating the interpolated values for each map sequentially in a for loop. Because of this, models that use interpolation train much more slowly than those that use MAE, despite interpolation not having any learnable weights. If a function allowed multiple maps to be interpolated simultaneously on the GPU, this could speed up training significantly. The issue is raised in a PyTorch feature request [here](https://github.com/pytorch/pytorch/issues/1552), with multiple solutions proposed for different cases, but I am not sure if any would fit our specific case.
