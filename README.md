@@ -38,7 +38,7 @@ One limitation of the MAE is that it expects all images / maps within a batch to
 
 The Convolutional Block Attention Module (CBAM) is a type of gated attention applied to feature maps in a CNN that squishes some features to 0 and allows others to pass through unchanged (more accurately, it multiplies all features by a factor between 0 and 1). The CBAM sub-model is a UNet with CBAM-style attention. The UNet has three "levels", where each level consists of three convolution + CBAM layers followed by downsampling or upsampling.
 
-CBAM was the first type of attention we considered applying to RME, with the thought that it would learn to emphasize features in areas with more sampled measurements and downplay features in areas with fewer sampled measurements, while also potentially responding to implicitly learned features such as possible transmitter positions. However, since the input is already so sparse (all unsampled locations are filled with 0 by default), an attention mechanism that operates by squishing unimportant values to 0 might not have any affect here. This gave us the idea of filling in those unsampled locations and creating a "dense" map (i.e. stage 1 of the two-stage model). Our initial idea was to use interpolation to do this (realized in the Interpolation_CBAM model), though we actually started on the more powerful Masked Autoencoder (MAE_CBAM). We also created a CBAM model to allow the UNet with CBAM to operate directly on the sparse maps as an ablation study.
+CBAM was the first type of attention we considered applying to RME, with the thought that it would learn to emphasize features in areas with more sampled measurements and downplay features in areas with fewer sampled measurements, while also potentially responding to implicitly learned features such as possible transmitter positions. However, since the input is already so sparse (all unsampled locations are filled with 0 by default), an attention mechanism that operates by squishing unimportant values to 0 might not have the same effect here. This gave us the idea of filling in those unsampled locations and creating a "dense" map (i.e. stage 1 of the two-stage model). Our initial idea was to use interpolation to do this (realized in the Interpolation_CBAM model), though we actually started on the more powerful Masked Autoencoder (MAE_CBAM). We also created a CBAM model without any stage 1 to allow the UNet with CBAM to operate directly on the sparse maps as an ablation study.
 
 **UNet**
 
@@ -79,3 +79,18 @@ The *save_model* method takes as optional arguments *epochs* to manually specify
 **warning:** If two models with different initialization hyperparameters both share the same *model_name*, the *config* file of the latter will overwrite the *config* file of the former without any warning. Take care that models only share the same name if they share the same hyperparameters.
 
 To load a model, first initialize a new model with the same hyperparameters as the saved model. Then use the *load_state_dict* method to load the weights saved under the appropriate file.
+
+## Experimentation and Results
+
+Thus far we have trained five separate named models, some with multiple different training parameters. **Model 1** is an MAE_CBAM, and has trained with the most combinations of different training parameters. Below are some example maps drawn by those models, with the training hyperparameters listed above. In each case, the first image is the ground truth map, the second is the sampled locations, third is the dense map predicted from those sampled measurements, and fourth is the final map convolved with buildings.
+
+**Model 1: MAE_CBAM**
+
+Trained on 3-41 samples, free space only
+![Image](images/Model%201,%203-41%20samples,%20free%20space%20only,%2050%20epochs.png)
+
+Trained on 42-82 samples, free space only
+![Image](images/Model%201,%2042-82%20samples,%20free%20space%20only,%2050%20epochs.png)
+
+Trained on 83-123 samples, free space only
+![Image](images/Model%201,%2083-123%20samples,%20free%20space%20only,%2050%20epochs.png)
