@@ -140,7 +140,7 @@ MAE_UNet, trained on 42-82 samples, free space only
 
 Without *mae_regularization*, we're back to the much fuzzier stage 1 dense map prediction, but the main place we're looking for differences is in the final predicted map, since this is output by the UNet now without CBAM attention. Interestingly, the color at building locations is visibly lighter, indicating that the model predicted higher radio powers at buildings than previous models (which correctly predicted them as close to zero); however, because loss is calculated on free space only, this does not affect training or validation score. Looking at validation loss between MAE_UNet and the corresponding MAE_CBAM run, we see the following.
 
-![Image](Images/MAE_UNet%20Validation.png)
+![Image](images/MAE_UNet%20Validation.png)
 
 Again, there is very little difference between the two models and two training runs. It's possible that the MAE_UNet has a slightly jumpier validation loss throughout its 50 epochs of training, but it's difficult to say how significant this is, and the two losses cross over each other multiple times throughout training.
 
