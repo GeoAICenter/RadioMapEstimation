@@ -82,15 +82,88 @@ To load a model, first initialize a new model with the same hyperparameters as t
 
 ## Experimentation and Results
 
-Thus far we have trained five separate named models, some with multiple different training parameters. **Model 1** is an MAE_CBAM, and has trained with the most combinations of different training parameters. Below are some example maps drawn by those models, with the training hyperparameters listed above. In each case, the first image is the ground truth map, the second is the sampled locations, third is the dense map predicted from those sampled measurements, and fourth is the final map convolved with buildings.
+Thus far we have trained five separate named models, some with multiple different training parameters. Below are some example maps drawn by those models, with the training parameters listed above. In each case, the first image is the ground truth map, the second is the sampled locations, third is the dense map predicted from those sampled measurements, and fourth is the final map convolved with buildings. All models are trained for 50 epochs.
 
 **Model 1: MAE_CBAM**
 
-Trained on 3-41 samples, free space only
-![Image](images/Model%201,%203-41%20samples,%20free%20space%20only,%2050%20epochs.png)
+MAE_CBAM, trained on 3-41 samples, free space only
+![Image](images/MAE_CBAM,%203-41%20samples,%20free%20space%20only,%2050%20epochs.png)
 
-Trained on 42-82 samples, free space only
-![Image](images/Model%201,%2042-82%20samples,%20free%20space%20only,%2050%20epochs.png)
+MAE_CBAM, trained on 42-82 samples, free space only
+![Image](images/MAE_CBAM,%2042-82%20samples,%20free%20space%20only,%2050%20epochs.png)
 
-Trained on 83-123 samples, free space only
-![Image](images/Model%201,%2083-123%20samples,%20free%20space%20only,%2050%20epochs.png)
+MAE_CBAM, trained on 83-123 samples, free space only
+![Image](images/MAE_CBAM,%2083-123%20samples,%20free%20space%20only,%2050%20epochs.png)
+
+These were the first three models trained to completion (three other MAE_CBAM models were trained for 15 epochs with *free_space_only=False*). On the models trained on 3-41 samples or 42-82 samples per map, stage 1 of the model seems to be learning a spatial model of radio propagation that allows it to predict higher power near the (unknown) transmitter location and lower power farther away from it; this is especially apparent in the 42-82 sample case. However, for some reason at 83-123 samples it seems to lose this capacity, predicting higher signal strength across the entire area, with almost no visible concentration around the transmitter location. Nonetheless, all three predict similar (though not identical) final maps with buildings, with the only visible difference being a slightly blurrier image in the 3-41 sample map.
+
+At Nikita Lokhmachev's suggestion, we added *mae_regularization*, a secondary loss term that calculates the MSE between the dense map output by stage 1 of the model and the ground truth, despite the fact that the dense map prediction doesn't have access to building locations and so presumably would not be able to closely match the actual map with buildings. However, we got the following very surprising results:
+
+MAE_CBAM, trained on 3-41 samples, free space only, mae regularization
+![Image](images/MAE_CBAM,%203-41%20samples,%20free%20space%20only,%20mae%20regularization,%2050%20epochs.png)
+
+MAE_CBAM, trained on 42-82 samples, free space only, mae regularization
+![Image](images/MAE_CBAM,%2042-82%20samples,%20free%20space%20only,%20mae%20regularization.png)
+
+Despite not having access to building locations, the dense maps output by the MAE were able to model radio propagation (including shadowing from the unseen buildings) with remarkable fidelity. The area of strongest signal is localized much more narrowly around the (still unknown) transmitter position, and the predicted radio power dropoff is almost identical to the final map predictions except for the absence of zero or near-zero power predictions at actual building locations.
+
+This visible difference in the quality of the stage 1 predictions would suggest a similar improvement in stage 2 predictions, but notably we cannot see any such improvement by the naked eye. Looking at validation loss across epochs of all five runs, we observe the following.
+
+![Image](images/MAE_CBAM%20Validation.png)
+
+In fact, the increased fidelity of the stage 1 maps with *mae_regularization* doesn't seem to have any bearing on the final error of the stage 2 maps, which is the only output we care about. The only difference we see is that models trained and evaluated on greater numbers of samples perform better than models trained and evaluated on lower numbers of samples (in each case, the model is evaluated on maps with the same range of samples as it was trained on). Given the significant difference between models trained on 3-41 samples and models trained on 42-82 samples, we decide to train all following models on 42-82 samples as a common comparison point (the performance boost of training on 83-123 samples is much less significant, and these models take longer to train). 
+
+**Model 2: Interpolation_CBAM**
+
+Replacing the stage 1 MAE with simple interpolation (nearest neighbor and linear), we get the following dense and final maps.
+
+Interpolation_CBAM, trained on 42-82 samples, free space only, nearest neighbor interpolation
+![Image](images/Interpolation_CBAM,%2042-82%20samples,%20free%20space%20only,%20nearest%20interpolation.png)
+
+Interpolation_CBAM, trained on 42-82 samples, free space only, linear interpolation
+![Image](images/Interpolation_CBAM,%2042-82%20samples,%20free%20space%20only,%20linear%20interpolation.png)
+
+The stage 1 dense map with nearest neighbor interpolation, though much blockier and less detailed than the stage 1 MAE dense prediction with *mae_regularizatioin*, is nonetheless still recognizable from the ground truth map, and the final prediction looks reasonably accurate. The stage 1 dense map with linear interpolation, on the other hand, looks almost unrecognizable, but again the final prediction doesn't seem to suffer from this. Comparing their validation losses across epochs confirms this.
+
+![Image](images/Interpolation_CBAM%20Validation.png)
+
+Again, there isn't an apparent advantage gained from either model's stage 1 output on the stage 2 prediction, despite them being so different. And comparing both models' validation loss against the comparable runs of Model 1, we see the same.
+
+![Image](images/MAE_CBAM,%20Interpolation_CBAM%20Validation.png)
+
+**Model 3: MAE_UNet**
+
+Keeping the stage 1 MAE but removing CBAM attention from the UNet in stage 2, we test the difference this makes with the following model. We do not include *mae_regularization* with this model.
+
+MAE_UNet, trained on 42-82 samples, free space only
+![Image](images/MAE_UNet,%2042-82%20samples,%20free%20space%20only.png)
+
+Without *mae_regularization*, we're back to the much fuzzier stage 1 dense map prediction, but the main place we're looking for differences is in the final predicted map, since this is output by the UNet now without CBAM attention. Interestingly, the color at building locations is visibly lighter, indicating that the model predicted higher radio powers at buildings than previous models (which correctly predicted them as close to zero); however, because loss is calculated on free space only, this does not affect training or validation score. Looking at validation loss between MAE_UNet and the corresponding MAE_CBAM run, we see the following.
+
+![Image](Images/MAE_UNet%20Validation.png)
+
+Again, there is very little difference between the two models and two training runs. It's possible that the MAE_UNet has a slightly jumpier validation loss throughout its 50 epochs of training, but it's difficult to say how significant this is, and the two losses cross over each other multiple times throughout training.
+
+**Model 4 and Model 5: CBAM and UNet**
+
+Given the apparent lack of influence different stage 1 dense maps have on stage 2 predictions, we train Models 4 and 5 without a stage 1 at all, just feeding the sparse input directly into the CBAM and UNet respectively. Model 5 is very similar to how we trained the models in our previous work, but the architecture of the UNet is changed slightly; the architectures of Models 4 and 5 is identical except for the inclusion of CBAM attention in Model 4.
+
+CBAM, trained on 42-82 samples, free space only
+![Image](images/CBAM,%2042-82%20samples,%20free%20space%20only.png)
+
+UNet, trained on 42-82 samples, free space only
+![Image](images/UNet,%2042-82%20samples,%20free%20space%20only.png)
+
+Because there is no stage 1, the "dense map" just shows the sampled map fed directly into the convolutional models. Again we see that the UNet predicts higher powers at buildings (at least on the largest building) than the CBAM, but again loss is only calculated on free space and so this doesn't affect performance scores. Looking at their validation losses across epochs, we see very similar performance, though the UNet is again perhaps a little jumpier than the CBAM, and both are perhaps slightly jumpier than most two-stage models.
+
+![Image](images/CBAM,%20UNet%20Validation.png)
+
+**Overall**
+
+Looking at all models trained on 42-82 sample maps for 50 epochs, we get the following result.
+
+![Image](images/All%20Models%20Validation.png)
+
+The similarity of validation losses across training would seem to suggest none of the interventions tested had a significant impact on radio map estimation accuracy. The only visible changes are that the UNet, MAE_UNet, and to a lesser degree CBAM do seem to have a slightly jumpier validation loss across different epochs, but again the significance of this is hard to judge from these results. 
+
+It's possible we should still test and compare these models on a fixed validation dataset, e.g. the pre-sampled maps from the validation set with the fewest samples, so we can compare all of them on exactly the same sampled maps. Early tests doing this suggested there might still be an advantage for these models over previous ones at lower sampling rates; however, this might simply be due to the fact that these models were trained exclusively on lower sampling rates (between 1-3% of total numbers of pixels), while previous models were trained on much larger ranges of sampling rates (between 1-20%). Theoretically, it's also reasonable to ask why these interventions (which make sense intuitively, and produce clear differences in stage 1 predictions) don't make a larger difference on final prediction errors, and whether there might be hyperparameter settings that can make more effective use of these interventions.
