@@ -11,6 +11,15 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true
-        }
+        },
+        {
+            "name": "Python: train.py",
+            "type": "python",
+            "request": "launch",
+            "program": "train.py",
+            "args": ["--samples", "3", "41"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }        
     ]
 }

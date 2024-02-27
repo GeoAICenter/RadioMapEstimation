@@ -1,4 +1,5 @@
 import os
+import argparse
 
 import torch
 from torch.utils.data import DataLoader
@@ -15,6 +16,18 @@ IMG_SIZE_64_VAL = os.path.join(
     DATASET_DIR, 'RadioMapSeer_64x64_Val')
 
 CHECKPOINT_DIR = os.path.join(ROOT_DIR, 'archive', 'checkpoints')
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--img_size',
+                    type=int,
+                    default=64,
+                    choices=[32, 64])
+parser.add_argument('--samples', 
+                    nargs=2, 
+                    type=int, 
+                    metavar=('min_samples', 'max_samples'),
+                    required=True)
+args = parser.parse_args()
 
 batch_size = 64
 learning_rate = 1e-3
@@ -43,17 +56,19 @@ def get_val_dataloader():
     return val_dataloader
 
 def get_optimizer(model):
-    optimizer = torch.optim.AdamW(model, lr=learning_rate)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
     return optimizer
 
-img_size = 64
-min_samples, max_samples = 3, 41
+img_size = args.img_size
+min_samples, max_samples = sorted(args.samples)
 patch_size = 1
 in_chans = 1
 embed_dim = 128
 pos_dim = 64
 depth = 6
 num_heads = 4
+
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 model = MAE_CBAM(
     f'mae-cbam_img_{img_size}_samples_{min_samples}-{max_samples}',
@@ -66,7 +81,7 @@ model = MAE_CBAM(
     num_heads=num_heads,    
     decoder_embed_dim=embed_dim,
     decoder_depth=depth,
-    decoder_num_heads=num_heads)
+    decoder_num_heads=num_heads).to(device)
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -81,7 +96,12 @@ model.fit(
     min_samples=min_samples,
     max_samples=max_samples,
     run_name=None,
+    dB_max=1,
+    dB_min=0,
+    free_space_only=False,
+    mae_regularization=False,
     epochs=20,
+    save_model_epochs=20,
     eval_model_epochs=1,
     save_model_dir=CHECKPOINT_DIR
 )
