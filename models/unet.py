@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 
+from torch.utils.tensorboard import SummaryWriter
+
 from util.random_sample import RandomSample
 from sub_models._unet import _UNet
 
@@ -89,6 +91,9 @@ class UNet(nn.Module):
                                     max_samples=max_samples, run_name=run_name, dB_max=dB_max, dB_min=dB_min, 
                                     free_space_only=free_space_only)
         
+        writer = SummaryWriter(os.path.join('tb_logs', f'unet_img_64_samples_{min_samples}-{max_samples}'))
+        
+        global_step = 0
         for epoch in range(epochs):
             self.train()
             running_loss = 0.0
@@ -96,11 +101,13 @@ class UNet(nn.Module):
                 loss = self.step(batch, optimizer, min_samples, max_samples, train=True, free_space_only=free_space_only)
                 running_loss += loss.detach().item()
                 print(f'{loss}, [{epoch + 1}, {i + 1:5d}] loss: {running_loss/(i+1)}')
+                global_step += 1
 
             if eval_model_epochs > 0:
                 if (epoch + 1) % eval_model_epochs == 0:
                     test_loss = self.evaluate(val_dl, min_samples, max_samples, dB_max, dB_min, free_space_only=free_space_only)
                     print(f'{test_loss}, [{epoch + 1}]')
+                    writer.add_scalar('val_loss', test_loss, global_step)
             
             if scheduler:
               scheduler.step()   
@@ -109,6 +116,9 @@ class UNet(nn.Module):
                 if not os.path.exists(save_model_dir):
                     os.makedirs(save_model_dir)
                 self.save_model(epoch+1, optimizer, scheduler, out_dir=save_model_dir)
+
+        writer.flush()
+        writer.close()                
 
 
     def fit_wandb(self, train_dl, val_dl, optimizer, scheduler, min_samples, max_samples, project_name, run_name=None, 

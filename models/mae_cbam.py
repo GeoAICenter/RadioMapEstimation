@@ -135,7 +135,7 @@ class MAE_CBAM(nn.Module):
                 if (epoch + 1) % eval_model_epochs == 0:
                     test_loss = self.evaluate(val_dl, min_samples, max_samples, dB_max, dB_min, free_space_only=free_space_only)
                     print(f'{test_loss}, [{epoch + 1}]')
-                    writer.add_scalar('val_loss', test_loss ** 2, global_step)
+                    writer.add_scalar('val_loss', test_loss, global_step)
             
             if scheduler:
               scheduler.step()   
