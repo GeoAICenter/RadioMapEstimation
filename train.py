@@ -5,6 +5,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from models.mae_cbam import MAE_CBAM
+from models.unet import UNet
 from util.dataset import RadioMapDataset
 
 ROOT_DIR = '/home/UNT/tjt0147/research_projects/rme/'
@@ -70,23 +71,35 @@ num_heads = 4
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-model = MAE_CBAM(
-    f'mae-cbam_img_{img_size}_samples_{min_samples}-{max_samples}',
-    img_size=img_size, 
-    patch_size=patch_size,
-    in_chans=in_chans,
-    embed_dim=embed_dim,
-    pos_dim=pos_dim,
-    depth=depth,
-    num_heads=num_heads,    
-    decoder_embed_dim=embed_dim,
-    decoder_depth=depth,
-    decoder_num_heads=num_heads).to(device)
+def get_mae_cbam_model():
+    model = MAE_CBAM(
+        f'mae-cbam_img_{img_size}_samples_{min_samples}-{max_samples}',
+        img_size=img_size, 
+        patch_size=patch_size,
+        in_chans=in_chans,
+        embed_dim=embed_dim,
+        pos_dim=pos_dim,
+        depth=depth,
+        num_heads=num_heads,    
+        decoder_embed_dim=embed_dim,
+        decoder_depth=depth,
+        decoder_num_heads=num_heads)
+    return model
+
+def get_unet_model():
+    model = UNet(
+        f'unet_img_{img_size}_samples_{min_samples}-{max_samples}',
+        img_size=img_size,
+        patch_size=patch_size,
+        in_chans=in_chans)
+    return model
+
+model = get_unet_model().to(device)
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-print(f'Parameters: {count_parameters(model)}')
+print(f'Number of Parameters: {count_parameters(model)}')
 
 model.fit(
     get_train_dataloader(),
@@ -99,7 +112,7 @@ model.fit(
     dB_max=1,
     dB_min=0,
     free_space_only=False,
-    mae_regularization=False,
+    #mae_regularization=False,
     epochs=20,
     save_model_epochs=20,
     eval_model_epochs=1,
